@@ -5,37 +5,37 @@ using LaTeXStrings
 import Statistics
 using StatsPlots
 
-# random.seed!(1234)
+# random.seed!(124)
 
 function create_correlation_matrix(n)
     m = [zeros(n) for i=1:n]
     for i in 1:n
         for j in 1:n
             if i <= n/2 && j <= n/2
-                m[i][j]=0.3
-                m[j][i]=0.3
+                m[i][j]=0.5
+                m[j][i]=0.5
             elseif i > n/2 && j >n/2
-                m[i][j]=0.3
-                m[j][i]=0.3
+                m[i][j]=0.5
+                m[j][i]=0.5
             end
             if i <= n/6 && j<=n/6
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             elseif i > n/6 && i <= n/3 && j > n/6 && j<= n/3
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             elseif i > n/3 && i <= n/2 && j > n/3 && j <= n/2
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             elseif i > n/2 && i <= 2/3*n && j > n/2 && j <=2/3*n
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             elseif i > 2/3*n && i <= 5/6*n && j > 2/3*n && j <= 5/6*n
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             elseif i > 5/6*n && i<=n && j > 5/6*n && i<=n
-                m[i][j]=0.6
-                m[j][i]=0.6
+                m[i][j]=0.8
+                m[j][i]=0.8
             end
         end
     end
@@ -49,7 +49,7 @@ n_trials = 100
 
 x_axis = 1:n_trials
 weights = [ones(n_synapses) for i=1:n_trials+1]
-eta = 0.01
+eta = 1
 dw = [[] for i=1:n_trials]
 outputs = Float64[]
 mean_dw_outputs = Float64[]
@@ -57,7 +57,7 @@ var_dw_outputs = Float64[]
 
 # creating samples from multivariate  gaussian
 mu = ones(n_synapses)
-stdx = 0.4
+stdx = 0.3
 corr = create_correlation_matrix(n_synapses)
 cov = corr * stdx^2
 
@@ -98,17 +98,17 @@ end
 P1 = plot()
 for l in 1:5
     local n= (getindex.(new_trials, l))
-    plot!(P1, n, marker=(:circle,7), markerstrokewidth=0, grid=true, ylabel="Presynaptic Input", linewidth=2, xlim=(1,15), ylim=(-1,3))
+    plot!(P1, n, marker=(:circle,7), markerstrokewidth=0, grid=true, ylabel="Presynaptic Input", linewidth=2, xlim=(1,15), ylim=(minimum(minimum(new_trials[j] for j in 1:n_trials)), maximum(maximum(new_trials[j] for j in 1:n_trials))))
 end
 
 
-P2 = plot(outputs, color="grey", ylim=(0,maximum(outputs)+0.2), xlim=(1,15), marker=(:circle,7), markerstrokewidth=0, legend=false, ylabel="Postsynaptic Output", 
+P2 = plot(outputs, color="grey", ylim=(0,maximum(outputs)+0.5), xlim=(1,15), marker=(:circle,7), markerstrokewidth=0, legend=false, ylabel="Postsynaptic Output", 
 linewidth=2)
 
 P3 = plot()
 for l in 1:5
     m= (getindex.(dw, l))
-    plot!(P3, m, marker=(:circle,7), markerstrokewidth=0, ylabel=L"$\Delta$w", linewidth=2, xlim=(1,15), ylim=(-0.01,0.04))
+    plot!(P3, m, marker=(:circle,7), markerstrokewidth=0, ylabel=L"$\Delta$w", linewidth=2, xlim=(1,15), ylim=(minimum(minimum(dw[j] for j in 1:n_trials)), maximum(maximum(dw[j] for j in 1:n_trials))))
 end
 
 P = plot(P1, P2, P3, layout=(3,1), xticks=x_axis, fmt = :png)
@@ -120,29 +120,27 @@ plot!(size=(900,900))
 
 # This transpose is to calculate correlations of the synapses across samples, not vice versa
 samples = new_trials'
-dws = dw'
+dws = Matrix(dw')
+
 
 # Correlation matrices
-M1 = Plots.heatmap(corr, yflip=true, title="Input Correlations", xlabel="Synapse number", ylabel="Synapse number")
+M1 = Plots.heatmap(cov, yflip=true, title="Input Correlations", xlabel="Synapse number", ylabel="Synapse number")
 
-# N = cor(vcat(dws...))
+N = cor(vcat(dws...))
 N1 = Plots.heatmap(N, yflip=true, title=L"$\Delta$w Correlations", xlabel="Synapse number", ylabel="Synapse number")
 
 plot(M1, N1, layout=(1,2))
 plot!(size=(900, 400))
 
 
-
 ############################################
 ############################################
 
+#plotting distributions
 mean_output = mean(outputs)
 variance_output = var(outputs)
-
-
 target_mean = mean(mean_dw_outputs)
 target_var = mean(var_dw_outputs)
-
 
 
 plotdist = plot(x->pdf(Normal(mean_output/mean_output, variance_output/mean_output), x), color="grey", linewidth=3, yformatter=_->"", yticks=false, xlabel="Postsynaptic Output", legend=false)
@@ -151,16 +149,32 @@ for i in 1:10
     plot!(x->pdf(Normal(2*mean_dw_outputs[i]/mean_output, var_dw_outputs[i]/mean_output), x), color="skyblue1", linewidth=1, xlim=(0,4))
 end
 current()
-# savefig() 
+# savefig(plotdist, "C:/Users/B00955735/OneDrive - Ulster University/Pictures/plotdist") 
 
 
+#############################################
+#making histograms for marginal plots
 
-hh1 = histogram(vcat(new_trials...), legend=false, orientation=:h, ylim=(-1,3), xaxis=false, size=(50,50))
-hh2 = histogram(outputs, legend=false, orientation=:h, ylim=(0,maximum(outputs)+0.2), xaxis=false, color="grey", size=(50,50), xticks=false)
-hh3 = histogram(vcat(dw...), legend=false, orientation=:h, ylim=(-0.01,0.04), xaxis=false, size=(50,50))
+hh1 = histogram(vcat(new_trials...), legend=false, orientation=:h, ylim=(minimum(minimum(new_trials[j] for j in 1:n_trials))-0.1, maximum(maximum(new_trials[j] for j in 1:n_trials))+0.1), xaxis=false)
+hh2 = histogram(outputs, legend=false, orientation=:h, ylim=(0,maximum(outputs)+0.5), xaxis=false, color="grey", size=(50,50), xticks=false)
+hh3 = histogram(vcat(dw...), legend=false, orientation=:h, ylim=(minimum(minimum(dw[j] for j in 1:n_trials))-0.05, maximum(maximum(dw[j] for j in 1:n_trials))+0.05), xaxis=false)
 
 P = plot(P1, hh1, P2, hh2, P3, hh3, layout=grid(3, 2, widths=[0.8, 0.2]), xticks=x_axis, fmt = :png, legend = false)
-plot!(size=(900,900))
+plot!(size=(900,700))
 
-# savefig()
+# savefig(P, "C:/Users/B00955735/OneDrive - Ulster University/Documents/SynRegularisation/Pics/plotsandmarginals") 
+
+#Correlation coefficients
+
+# cor1 = round(cor(new_trials[1], new_trials[2]), sigdigits=3)
+# cor2 = round(cor(dw[1], dw[2]), sigdigits=3)
+cor1 = cor(new_trials[1], new_trials[2])
+cor2 = cor(dw[1], dw[2])
+
+s1 = scatter(new_trials[1],new_trials[2], xaxis=false, yaxis=false, legend=false, title=L"$\rho$ =  %$cor1", xlabel="PreInput 1", ylabel="PreInput 2")
+s2 = scatter(dw[1], dw[2], xaxis=false, yaxis=false, legend=false, title=L"$\rho$ = %$cor2", xlabel = L"$\Delta$w1", ylabel = L"$\Delta$w2")
+
+S= plot(s1,s2, layout=(1,2))
+plot!(size=(800,400))
+
 
